@@ -52,12 +52,21 @@
         @keyframes heatInRight { 0% { transform: translateX(-25px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateX(15px); opacity: 0; } }
         @keyframes heatInLeft { 0% { transform: translateX(25px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateX(-15px); opacity: 0; } }
         
+        @keyframes heatOutTopLeft { 0% { transform: translate(10px, 10px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translate(-20px, -20px); opacity: 0; } }
+        @keyframes heatOutTopRight { 0% { transform: translate(-10px, 10px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translate(20px, -20px); opacity: 0; } }
+        @keyframes heatInTopLeft { 0% { transform: translate(-20px, -20px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translate(10px, 10px); opacity: 0; } }
+        @keyframes heatInTopRight { 0% { transform: translate(20px, -20px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translate(-10px, 10px); opacity: 0; } }
+
         .animate-heat-out-up { animation: heatOutUp 1.2s ease-out infinite; }
         .animate-heat-out-left { animation: heatOutLeft 1.2s ease-out infinite; }
         .animate-heat-out-right { animation: heatOutRight 1.2s ease-out infinite; }
         .animate-heat-in-down { animation: heatInDown 1.2s ease-out infinite; }
         .animate-heat-in-right { animation: heatInRight 1.2s ease-out infinite; }
         .animate-heat-in-left { animation: heatInLeft 1.2s ease-out infinite; }
+        .animate-heat-out-tl { animation: heatOutTopLeft 1.2s ease-out infinite; }
+        .animate-heat-out-tr { animation: heatOutTopRight 1.2s ease-out infinite; }
+        .animate-heat-in-tl { animation: heatInTopLeft 1.2s ease-out infinite; }
+        .animate-heat-in-tr { animation: heatInTopRight 1.2s ease-out infinite; }
         
         /* Hide scrollbar for button row on mobile/iPad */
         .hide-scroll::-webkit-scrollbar { display: none; }
@@ -485,20 +494,12 @@
                                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
                                                     {activeExp.type === 'exothermic' ? (
                                                         <React.Fragment>
-                                                            <div className="absolute text-red-500 font-bold text-3xl md:text-4xl animate-heat-out-up top-16 left-[5%]">↖</div>
-                                                            <div className="absolute text-red-500 font-bold text-3xl md:text-4xl animate-heat-out-up top-16 right-[5%]">↗</div>
-                                                            <div className="absolute text-red-500 font-bold text-3xl md:text-4xl animate-heat-out-left top-[40%] left-[2%]">←</div>
-                                                            <div className="absolute text-red-500 font-bold text-3xl md:text-4xl animate-heat-out-right top-[40%] right-[2%]">→</div>
                                                             <div className="absolute top-12 text-red-400 font-bold text-sm bg-red-950/90 px-4 py-2 rounded-full border border-red-500/50 shadow-[0_0_15px_rgba(248,113,113,0.3)] animate-pulse">
                                                                 🔥 ถ่ายเทความร้อนออกสู่สิ่งแวดล้อม
                                                             </div>
                                                         </React.Fragment>
                                                     ) : (
                                                         <React.Fragment>
-                                                            <div className="absolute text-blue-400 font-bold text-3xl md:text-4xl animate-heat-in-down top-16 left-[5%]">↘</div>
-                                                            <div className="absolute text-blue-400 font-bold text-3xl md:text-4xl animate-heat-in-down top-16 right-[5%]">↙</div>
-                                                            <div className="absolute text-blue-400 font-bold text-3xl md:text-4xl animate-heat-in-right top-[40%] left-[2%]">→</div>
-                                                            <div className="absolute text-blue-400 font-bold text-3xl md:text-4xl animate-heat-in-left top-[40%] right-[2%]">←</div>
                                                             <div className="absolute top-12 text-blue-400 font-bold text-sm bg-blue-950/90 px-4 py-2 rounded-full border border-blue-500/50 shadow-[0_0_15px_rgba(96,165,250,0.3)] animate-pulse">
                                                                 ❄️ ดูดความร้อนจากสิ่งแวดล้อมเข้าสู่ระบบ
                                                             </div>
@@ -517,6 +518,26 @@
                                                 onDragLeave={() => setIsDragOver(false)}
                                                 onDrop={handleDrop}
                                             >
+                                                {expState === 'REACTING' && activeExp && (
+                                                    <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
+                                                        {activeExp.type === 'exothermic' ? (
+                                                            <React.Fragment>
+                                                                <div className="absolute text-red-500 font-bold text-4xl animate-heat-out-tl -top-6 -left-6">↖</div>
+                                                                <div className="absolute text-red-500 font-bold text-4xl animate-heat-out-tr -top-6 -right-6">↗</div>
+                                                                <div className="absolute text-red-500 font-bold text-4xl animate-heat-out-left top-[35%] -left-12">←</div>
+                                                                <div className="absolute text-red-500 font-bold text-4xl animate-heat-out-right top-[35%] -right-12">→</div>
+                                                            </React.Fragment>
+                                                        ) : (
+                                                            <React.Fragment>
+                                                                <div className="absolute text-blue-400 font-bold text-4xl animate-heat-in-tl -top-6 -left-6">↘</div>
+                                                                <div className="absolute text-blue-400 font-bold text-4xl animate-heat-in-tr -top-6 -right-6">↙</div>
+                                                                <div className="absolute text-blue-400 font-bold text-4xl animate-heat-in-right top-[35%] -left-12">→</div>
+                                                                <div className="absolute text-blue-400 font-bold text-4xl animate-heat-in-left top-[35%] -right-12">←</div>
+                                                            </React.Fragment>
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                 <FlatBeaker 
                                                     currentTemp={currentTemp} 
                                                     color={currentColor} 
