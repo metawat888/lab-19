@@ -1,493 +1,632 @@
 <!DOCTYPE html>
-<html lang="th" class="dark">
+<html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard โมเลกุลน้ำแข็ง - Fullscreen 3D Simulation</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Interactive Reaction Lab</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        ice: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            200: '#bae6fd',
-                            300: '#7dd3fc',
-                            400: '#38bdf8',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            700: '#0369a1',
-                            800: '#075985',
-                            900: '#0c4a6e',
-                            950: '#082f49'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- Google Fonts Inter & Sarabun -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Three.js for 3D Molecular Simulation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
         body {
-            font-family: 'Sarabun', 'Inter', sans-serif;
-            overflow: hidden;
+            margin: 0;
+            background-color: #020617; /* Tailwind slate-950 */
+            font-family: 'Inter', sans-serif;
         }
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
+
+        @keyframes floatUp { 
+            0% { transform: translateY(0) scale(1); opacity: 1; } 
+            100% { transform: translateY(-100px) scale(1.5); opacity: 0; } 
         }
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+        
+        @keyframes pourFromRight {
+            0% { transform: translate(0px, 0px) rotate(0deg); opacity: 1; }
+            20% { transform: translate(-200px, -180px) rotate(-60deg); opacity: 1; }
+            80% { transform: translate(-200px, -180px) rotate(-60deg); opacity: 1; }
+            100% { transform: translate(-200px, -180px) rotate(-60deg); opacity: 0; }
         }
-        ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.6);
+        
+        .animate-pour-from-right {
+            animation: pourFromRight 1.5s forwards ease-in-out;
         }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(56, 189, 248, 0.4);
-            border-radius: 9999px;
+
+        .animate-pour-from-right .pour-inner .liquid-layer {
+            animation: liquidDrop 1.5s forwards ease-in-out;
         }
+        
+        @keyframes liquidDrop {
+            0% { height: 40%; }
+            30% { height: 40%; }
+            80% { height: 0%; }
+            100% { height: 0%; }
+        }
+        
+        @keyframes heatOutUp { 0% { transform: translateY(15px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(-25px); opacity: 0; } }
+        @keyframes heatOutLeft { 0% { transform: translateX(15px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateX(-25px); opacity: 0; } }
+        @keyframes heatOutRight { 0% { transform: translateX(-15px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateX(25px); opacity: 0; } }
+        
+        @keyframes heatInDown { 0% { transform: translateY(-25px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(15px); opacity: 0; } }
+        @keyframes heatInRight { 0% { transform: translateX(-25px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateX(15px); opacity: 0; } }
+        @keyframes heatInLeft { 0% { transform: translateX(25px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateX(-15px); opacity: 0; } }
+        
+        .animate-heat-out-up { animation: heatOutUp 1.2s ease-out infinite; }
+        .animate-heat-out-left { animation: heatOutLeft 1.2s ease-out infinite; }
+        .animate-heat-out-right { animation: heatOutRight 1.2s ease-out infinite; }
+        .animate-heat-in-down { animation: heatInDown 1.2s ease-out infinite; }
+        .animate-heat-in-right { animation: heatInRight 1.2s ease-out infinite; }
+        .animate-heat-in-left { animation: heatInLeft 1.2s ease-out infinite; }
+        
+        /* Hide scrollbar for button row on mobile/iPad */
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col selection:bg-ice-500 selection:text-white overflow-hidden">
+<body>
+    <div id="root"></div>
 
-    <!-- Header Overlay -->
-    <header class="absolute top-0 left-0 right-0 z-20 bg-slate-950/60 backdrop-blur-md border-b border-slate-800/80 px-4 lg:px-8 py-3 flex items-center justify-between pointer-events-auto">
-        <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-ice-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-ice-500/30">
-                <i class="fa-solid fa-snowflake text-white text-xl animate-pulse"></i>
-            </div>
-            <div>
-                <h1 class="font-bold text-lg text-transparent bg-clip-text bg-gradient-to-r from-ice-200 via-cyan-400 to-sky-500">Dashboard โมเลกุลน้ำแข็ง & สสารน้ำ</h1>
-                <p class="text-xs text-slate-400">จำลองโครงสร้าง 3 มิติเต็มจอ (Ice $\rightarrow$ Water $\rightarrow$ Vapor)</p>
-            </div>
-        </div>
-        <div class="flex items-center space-x-2 sm:space-x-4">
-            <button onclick="resetSimulation()" class="px-3 py-1.5 bg-slate-900/80 hover:bg-slate-800 active:scale-95 transition text-xs font-medium rounded-lg border border-slate-700 flex items-center space-x-1.5 text-slate-200 shadow-md">
-                <i class="fa-solid fa-rotate-right text-ice-400"></i>
-                <span>รีเซ็ตมุมกล้อง</span>
-            </button>
-        </div>
-    </header>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
-    <!-- Fullscreen 3D Simulation Viewer Container -->
-    <main class="relative w-full h-full overflow-hidden">
-        
-        <!-- Overlay Header Controls (Phase Status) -->
-        <div class="absolute top-20 left-4 lg:left-8 z-10 flex items-center space-x-2 bg-slate-950/80 backdrop-blur px-3.5 py-2 rounded-xl border border-slate-700/80 text-xs shadow-xl">
-            <span id="status-indicator-dot" class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
-            <span class="font-medium text-slate-200" id="current-phase-label">สถานะ: น้ำแข็งก้อน (Ice Ih, 250K / -23°C)</span>
-        </div>
-        
-        <!-- Camera Presets -->
-        <div class="absolute top-20 right-4 lg:right-8 z-10 flex items-center space-x-2 shadow-xl">
-            <button onclick="setCameraView('top')" class="px-3 py-1.5 bg-slate-950/80 hover:bg-slate-900 text-slate-300 border border-slate-700/80 backdrop-blur rounded-lg text-xs transition">มุมบน</button>
-            <button onclick="setCameraView('isometric')" class="px-3 py-1.5 bg-slate-950/80 hover:bg-slate-900 text-slate-300 border border-slate-700/80 backdrop-blur rounded-lg text-xs transition">ไอโซเมตริก</button>
-            <button onclick="setCameraView('side')" class="px-3 py-1.5 bg-slate-950/80 hover:bg-slate-900 text-slate-300 border border-slate-700/80 backdrop-blur rounded-lg text-xs transition">ด้านข้าง</button>
-        </div>
+        const EXPERIMENTS = [
+            {
+                id: 'exo_1',
+                name: 'น้ำ + แคลเซียมคลอไรด์',
+                type: 'exothermic',
+                title: 'ปฏิกิริยาคายความร้อน (Exothermic)',
+                description: 'เมื่อละลายแคลเซียมคลอไรด์ในน้ำ ระบบจะปล่อยความร้อนออกมาสู่สิ่งแวดล้อม ทำให้อุณหภูมิของสารละลายสูงขึ้น รู้สึกร้อนเมื่อสัมผัส',
+                baseTemp: 25,
+                targetTemp: 45,
+                reactionTime: 4000,
+                baseReactant: 'น้ำ (H₂O)',
+                addedReactant: 'แคลเซียมคลอไรด์',
+                baseColor: '#0cebeb',
+                addedColor: '#f1f5f9',
+                finalColor: '#fca5a5',
+                particles: 'fire',
+                equation: 'CaCl₂(s) + H₂O(l) → Ca²⁺(aq) + 2Cl⁻(aq) + ความร้อน',
+                energyProfile: { reactants: 80, activation: 90, products: 30 }
+            },
+            {
+                id: 'endo_1',
+                name: 'น้ำ + แอมโมเนียมไนเตรต',
+                type: 'endothermic',
+                title: 'ปฏิกิริยาดูดความร้อน (Endothermic)',
+                description: 'เมื่อละลายแอมโมเนียมไนเตรตในน้ำ ระบบจะดูดกลืนความร้อนจากสิ่งแวดล้อมเข้าไป ทำให้อุณหภูมิของสารละลายลดลง รู้สึกเย็นเมื่อสัมผัส',
+                baseTemp: 25,
+                targetTemp: 5,
+                reactionTime: 4000,
+                baseReactant: 'น้ำ (H₂O)',
+                addedReactant: 'แอมโมเนียมไนเตรต',
+                baseColor: '#0cebeb',
+                addedColor: '#e2e8f0',
+                finalColor: '#93c5fd',
+                particles: 'snow',
+                equation: 'NH₄NO₃(s) + H₂O(l) + ความร้อน → NH₄⁺(aq) + NO₃⁻(aq)',
+                energyProfile: { reactants: 30, activation: 95, products: 80 }
+            },
+            {
+                id: 'exo_2',
+                name: 'กรด HCl + แมกนีเซียม',
+                type: 'exothermic',
+                title: 'ปฏิกิริยาคายความร้อน (Exothermic)',
+                description: 'โลหะแมกนีเซียมทำปฏิกิริยากับกรด เกิดแก๊สไฮโดรเจนและปล่อยพลังงานความร้อนออกมา',
+                baseTemp: 25,
+                targetTemp: 55,
+                reactionTime: 4500,
+                baseReactant: 'กรดไฮโดรคลอริก',
+                addedReactant: 'โลหะแมกนีเซียม',
+                baseColor: '#cffafe',
+                addedColor: '#94a3b8',
+                finalColor: '#fcd34d',
+                particles: 'bubbles',
+                equation: 'Mg(s) + 2HCl(aq) → MgCl₂(aq) + H₂(g) + ความร้อน',
+                energyProfile: { reactants: 75, activation: 85, products: 20 }
+            },
+            {
+                id: 'endo_2',
+                name: 'น้ำส้มสายชู + เบกกิ้งโซดา',
+                type: 'endothermic',
+                title: 'ปฏิกิริยาดูดความร้อน (Endothermic)',
+                description: 'เมื่อผสมน้ำส้มสายชูกับเบกกิ้งโซดา จะเกิดแก๊สคาร์บอนไดออกไซด์ และระบบจะดูดกลืนความร้อนทำให้อุณหภูมิลดลง',
+                baseTemp: 25,
+                targetTemp: 16,
+                reactionTime: 4000,
+                baseReactant: 'น้ำส้มสายชู',
+                addedReactant: 'เบกกิ้งโซดา',
+                baseColor: '#fef08a', 
+                addedColor: '#ffffff', 
+                finalColor: '#bfdbfe', 
+                particles: 'snow',
+                equation: 'NaHCO₃(s) + CH₃COOH(aq) + ความร้อน → CH₃COONa(aq) + H₂O(l) + CO₂(g)',
+                energyProfile: { reactants: 20, activation: 80, products: 60 }
+            },
+            {
+                id: 'exo_3',
+                name: 'กรด HCl + โซเดียมไฮดรอกไซด์',
+                type: 'exothermic',
+                title: 'ปฏิกิริยาคายความร้อน (Exothermic)',
+                description: 'ปฏิกิริยาสะเทินระหว่างกรดและเบส เกิดเกลือและน้ำ ระบบจะปล่อยพลังงานความร้อนออกมาสู่สิ่งแวดล้อม',
+                baseTemp: 25,
+                targetTemp: 45,
+                reactionTime: 3500,
+                baseReactant: 'กรดไฮโดรคลอริก',
+                addedReactant: 'โซเดียมไฮดรอกไซด์',
+                baseColor: '#e0f2fe', 
+                addedColor: '#f8fafc', 
+                finalColor: '#fca5a5', 
+                particles: 'fire',
+                equation: 'HCl(aq) + NaOH(aq) → NaCl(aq) + H₂O(l) + ความร้อน',
+                energyProfile: { reactants: 80, activation: 90, products: 25 }
+            },
+            {
+                id: 'endo_3',
+                name: 'น้ำ + โพแทสเซียมไนเตรต',
+                type: 'endothermic',
+                title: 'ปฏิกิริยาดูดความร้อน (Endothermic)',
+                description: 'การละลายโพแทสเซียมไนเตรตในน้ำ ต้องการพลังงานในการแตกตัว ทำให้อุณหภูมิของสารละลายลดลง',
+                baseTemp: 25,
+                targetTemp: 12,
+                reactionTime: 4500,
+                baseReactant: 'น้ำ (H₂O)',
+                addedReactant: 'โพแทสเซียมไนเตรต',
+                baseColor: '#0cebeb', 
+                addedColor: '#f1f5f9', 
+                finalColor: '#93c5fd', 
+                particles: 'snow',
+                equation: 'KNO₃(s) + H₂O(l) + ความร้อน → K⁺(aq) + NO₃⁻(aq)',
+                energyProfile: { reactants: 35, activation: 95, products: 80 }
+            }
+        ];
 
-        <!-- Three.js Canvas Element -->
-        <div id="canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+        const PARTICLES_DATA = [
+            { left: '10%', bottom: '-10px', delay: '0s', duration: '1s', size: '4px' },
+            { left: '25%', bottom: '-5px', delay: '0.2s', duration: '1.5s', size: '6px' },
+            { left: '40%', bottom: '-15px', delay: '0.4s', duration: '2s', size: '8px' },
+            { left: '55%', bottom: '-10px', delay: '0.1s', duration: '1.2s', size: '5px' },
+            { left: '70%', bottom: '-5px', delay: '0.5s', duration: '1.8s', size: '7px' },
+            { left: '85%', bottom: '-15px', delay: '0.3s', duration: '1.4s', size: '6px' },
+            { left: '15%', bottom: '-8px', delay: '0.6s', duration: '1.7s', size: '5px' },
+            { left: '65%', bottom: '-12px', delay: '0.7s', duration: '1.3s', size: '9px' }
+        ];
 
-        <!-- Floating Legend & Controls at Bottom -->
-        <div class="absolute bottom-6 left-4 right-4 lg:left-12 lg:right-12 z-10 flex flex-col lg:flex-row items-center justify-between gap-4 bg-slate-950/85 backdrop-blur-md px-5 py-4 rounded-2xl border border-slate-800 text-xs text-slate-300 shadow-2xl">
-            
-            <!-- Legend Items -->
-            <div class="flex flex-wrap items-center gap-4">
-                <div class="flex items-center space-x-1.5">
-                    <span class="w-3 h-3 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></span>
-                    <span>ออกซิเจน (O)</span>
-                </div>
-                <div class="flex items-center space-x-1.5">
-                    <span class="w-3 h-3 rounded-full bg-white shadow-sm shadow-white/50"></span>
-                    <span>ไฮโดรเจน (H)</span>
-                </div>
-                <div class="flex items-center space-x-1.5">
-                    <span class="w-4 h-0.5 bg-cyan-400 inline-block" id="legend-bond-bar"></span>
-                    <span id="legend-bond-text">พันธะไฮโดรเจน</span>
-                </div>
-                <div class="text-[11px] text-slate-400 hidden sm:block">
-                    <i class="fa-solid fa-hand text-cyan-400 mr-1"></i> คลิกและลากเพื่อหมุน | เลื่อนล้อเพื่อซูม
-                </div>
-            </div>
+        const FlatBeaker = ({ 
+            currentTemp, 
+            color, 
+            isReacting, 
+            particlesType, 
+            showThermometer = true, 
+            liquidHeight = '50%', 
+            label, 
+            isDraggable = false,
+            isHidden = false,
+            customClass = ''
+        }) => {
+            const tempPercent = typeof currentTemp === 'number' 
+                ? Math.min(Math.max((currentTemp / 70) * 100, 0), 100) 
+                : 0;
 
-            <!-- Temperature Slider & Phase Transition -->
-            <div class="flex flex-col w-full lg:w-[45%] space-y-2">
-                <div class="flex justify-between items-center text-xs font-medium px-1">
-                    <div class="flex items-center space-x-2">
-                        <i class="fa-solid fa-temperature-arrow-up text-sky-400"></i>
-                        <span class="text-slate-200 font-semibold">แผงควบคุมอุณหภูมิ</span>
+            if (isHidden) return <div className="w-[140px] h-[170px]"></div>;
+
+            return (
+                <div className={`relative flex flex-col items-center w-[140px] ${customClass}`}>
+                    {label && (
+                        <div className="absolute -bottom-14 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white/95 text-black px-3 py-1 rounded-md border-[3px] border-black text-xs font-bold z-50 shadow-md">
+                            {label}
+                        </div>
+                    )}
+
+                    {showThermometer && typeof currentTemp === 'number' && (
+                        <div className="absolute top-[30px] left-[-35px] bg-black text-white px-2 py-1 rounded-md text-xs font-mono font-bold z-50">
+                            {currentTemp.toFixed(1)}°C
+                        </div>
+                    )}
+
+                    <div className="relative mt-2">
+                        <div className="absolute top-[-6px] left-[-10px] right-[-10px] h-[12px] bg-white border-[6px] border-black rounded-full z-40"></div>
+                        
+                        <div className="w-[120px] h-[150px] bg-white border-[6px] border-t-0 border-black rounded-b-[24px] relative overflow-hidden z-10 flex flex-col justify-end">
+                            <div 
+                                className="liquid-layer w-full relative transition-all duration-1000 ease-in-out origin-bottom border-t-[4px] border-black"
+                                style={{ height: liquidHeight, backgroundColor: color }}
+                            >
+                                {isReacting && particlesType === 'fire' && (
+                                    <div className="absolute inset-0 flex justify-center items-end pb-2 opacity-80">
+                                        <div className="w-full h-full flex justify-around animate-pulse">
+                                            {[...Array(6)].map((_, i) => (
+                                                <div key={`fire-${i}`} className="w-2 h-2 bg-red-500 rounded-full animate-ping" style={{ animationDelay: `${i*0.2}s`, animationDuration: '0.8s'}}></div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {isReacting && particlesType === 'snow' && (
+                                    <div className="absolute inset-0 opacity-80">
+                                        {PARTICLES_DATA.map((p, i) => (
+                                            <div key={`snow-${i}`} className="absolute bg-white border-[2px] border-blue-200 rounded-full animate-bounce" 
+                                                style={{ left: p.left, bottom: p.bottom, width: p.size, height: p.size, animationDelay: p.delay, animationDuration: p.duration }}>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {isReacting && particlesType === 'bubbles' && (
+                                    <div className="absolute inset-0 opacity-80">
+                                        {PARTICLES_DATA.map((p, i) => (
+                                            <div key={`bubble-${i}`} className="absolute border-[2px] border-black/30 rounded-full" 
+                                                style={{ left: p.left, bottom: p.bottom, width: p.size, height: p.size, animation: `floatUp ${p.duration} linear infinite`, animationDelay: p.delay }}>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="absolute top-[10px] bottom-[15px] left-0 flex flex-col justify-between py-1 pointer-events-none z-30">
+                                {[...Array(6)].map((_, i) => (
+                                    <div key={`tick-${i}`} className={`h-[4px] bg-black ${i % 2 === 0 ? 'w-[20px]' : 'w-[12px]'}`}></div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {showThermometer && (
+                            <div className="absolute bottom-[5px] right-[15px] w-[20px] h-[170px] bg-white border-[5px] border-black rounded-full p-[2px] flex flex-col justify-end z-20">
+                                <div className="w-full bg-red-600 rounded-full transition-all duration-300 origin-bottom" style={{ height: `${tempPercent}%` }}></div>
+                            </div>
+                        )}
                     </div>
-                    <span id="temp-display" class="px-2.5 py-0.5 bg-sky-500/10 border border-sky-500/30 text-sky-400 rounded-lg font-mono text-xs font-bold">-23°C (250 K)</span>
                 </div>
-                <input type="range" id="temp-slider" min="200" max="450" value="250" step="1" 
-                    oninput="onTemperatureChange(this.value)"
-                    class="w-full h-2.5 bg-gradient-to-r from-cyan-500 via-emerald-500 to-amber-500 rounded-lg appearance-none cursor-pointer focus:outline-none shadow-inner">
-                <div class="flex justify-between text-[10px] text-slate-400 font-mono px-1">
-                    <span class="text-cyan-400">❄️ น้ำแข็ง (<0°C)</span>
-                    <span class="text-emerald-400">💧 น้ำ (0-99°C)</span>
-                    <span class="text-amber-400">☁️ ไอน้ำ (>100°C)</span>
-                </div>
-            </div>
-
-        </div>
-
-    </main>
-
-    <script>
-        // Global variables for Three.js scene
-        let scene, camera, renderer, molecularGroup;
-        let isDragging = false;
-        let previousMousePosition = { x: 0, y: 0 };
-
-        // Simulation parameters
-        let currentTemperature = 250;
-        let currentPhaseMode = 'ice';
-        let atomMeshes = [];
-        let bondLines = [];
-        let waterMoleculesData = [];
-
-        // Initialize Everything on Window Load
-        window.onload = function() {
-            initThreeJS();
-            buildMolecularStructure(currentPhaseMode);
-            animate();
-
-            // Window resize handler
-            window.addEventListener('resize', onWindowResize);
+            );
         };
 
-        // Initialize Three.js 3D Environment
-        function initThreeJS() {
-            const container = document.getElementById('canvas-container');
+        const TemperatureGraph = ({ data, maxTime, type }) => {
+            if (!data || data.length === 0) return (
+                <div className="w-full h-full min-h-[150px] bg-slate-900/50 rounded-2xl flex items-center justify-center text-slate-500 border border-slate-700/50">
+                    <span>รอข้อมูลอุณหภูมิ...</span>
+                </div>
+            );
+
+            const w = 400, h = 180, margin = 35;
+            const isExo = type === 'exothermic';
+            const maxT = 70; 
             
-            scene = new THREE.Scene();
-            scene.fog = new THREE.FogExp2(0x020617, 0.012);
+            const getX = (time) => margin + (time / maxTime) * (w - margin * 2 + 10);
+            const getY = (temp) => h - margin - (temp / maxT) * (h - margin * 2);
 
-            camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
-            camera.position.set(0, 5, 20);
+            const pathData = `M ${getX(data[0].time)},${getY(data[0].temp)} ` + 
+                            data.map(d => `L ${getX(d.time)},${getY(d.temp)}`).join(' ');
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            container.appendChild(renderer.domElement);
+            return (
+                <div className="relative w-full h-full min-h-[180px] bg-slate-900 rounded-2xl p-4 border border-slate-700 flex flex-col">
+                    <div className="flex-1 relative w-full h-full">
+                        <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-full overflow-visible">
+                            <line x1={margin} y1={getY(25)} x2={w-margin+10} y2={getY(25)} stroke="#334155" strokeDasharray="2" opacity="0.5"/>
+                            <line x1={margin} y1={getY(50)} x2={w-margin+10} y2={getY(50)} stroke="#334155" strokeDasharray="2" opacity="0.5"/>
+                            <line x1={margin} y1={h-margin} x2={w-margin+20} y2={h-margin} stroke="#64748b" strokeWidth="2" />
+                            <line x1={margin} y1={h-margin} x2={margin} y2={margin-10} stroke="#64748b" strokeWidth="2" />
+                            
+                            <text x={margin-5} y={getY(25)+4} fill="#64748b" fontSize="10" textAnchor="end">25°</text>
+                            <text x={margin-5} y={getY(50)+4} fill="#64748b" fontSize="10" textAnchor="end">50°</text>
+                            <text x={margin-15} y={margin-15} fill="#94a3b8" fontSize="10" fontWeight="bold">T(°C)</text>
+                            <text x={w-15} y={h-10} fill="#94a3b8" fontSize="10" fontWeight="bold">เวลา</text>
 
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(ambientLight);
+                            <path d={pathData} fill="none" stroke={isExo ? "#ef4444" : "#3b82f6"} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                            {data.length > 0 && (
+                                <circle cx={getX(data[data.length-1].time)} cy={getY(data[data.length-1].temp)} r="4" fill={isExo ? "#fca5a5" : "#93c5fd"} />
+                            )}
+                        </svg>
+                    </div>
+                </div>
+            );
+        }
 
-            const directionalLight = new THREE.DirectionalLight(0x38bdf8, 1.4);
-            directionalLight.position.set(15, 25, 20);
-            scene.add(directionalLight);
+        const EnergyGraph = ({ energyProfile, type }) => {
+            if (!energyProfile) return (
+                <div className="w-full h-full min-h-[150px] bg-slate-900/50 rounded-2xl flex items-center justify-center text-slate-500 border border-slate-700/50">
+                    <span>รอผลเพื่อแสดงกราฟ...</span>
+                </div>
+            );
 
-            const backLight = new THREE.DirectionalLight(0xffffff, 0.4);
-            backLight.position.set(-15, -15, -15);
-            scene.add(backLight);
+            const { reactants, activation, products } = energyProfile;
+            const isExo = type === 'exothermic';
+            const w = 400, h = 200, margin = 30;
+            
+            const getX = (p) => margin + (p / 100) * (w - margin * 2);
+            const getY = (v) => h - margin - (v / 100) * (h - margin * 2);
 
-            molecularGroup = new THREE.Group();
-            scene.add(molecularGroup);
+            const pathData = `M ${getX(10)},${getY(reactants)} L ${getX(30)},${getY(reactants)} 
+                            Q ${getX(40)},${getY(reactants)} ${getX(50)},${getY(activation)}
+                            Q ${getX(60)},${getY(products)} ${getX(70)},${getY(products)} L ${getX(90)},${getY(products)}`;
 
-            // Mouse Interaction Listeners
-            container.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                previousMousePosition = { x: e.clientX, y: e.clientY };
-            });
+            return (
+                <div className="relative w-full h-full min-h-[200px] bg-slate-900 rounded-2xl p-4 border border-slate-700">
+                    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-full overflow-visible">
+                        <line x1={margin} y1={h-margin} x2={w-margin+10} y2={h-margin} stroke="#64748b" strokeWidth="2" />
+                        <line x1={margin} y1={h-margin} x2={margin} y2={margin-10} stroke="#64748b" strokeWidth="2" />
+                        <text x={margin-5} y={margin-5} fill="#94a3b8" fontSize="10" fontWeight="bold">พลังงาน</text>
+                        <text x={w-50} y={h-10} fill="#94a3b8" fontSize="10" fontWeight="bold">การดำเนินไป</text>
 
-            window.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-                const deltaX = e.clientX - previousMousePosition.x;
-                const deltaY = e.clientY - previousMousePosition.y;
+                        <path d={pathData} fill="none" stroke={isExo ? "#ef4444" : "#3b82f6"} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                        
+                        <text x={getX(10)} y={getY(reactants)-10} fill="#f1f5f9" fontSize="10" fontWeight="bold">สารตั้งต้น</text>
+                        <text x={getX(70)} y={getY(products)-10} fill="#f1f5f9" fontSize="10" fontWeight="bold">ผลิตภัณฑ์</text>
+                    </svg>
+                </div>
+            );
+        }
 
-                molecularGroup.rotation.y += deltaX * 0.008;
-                molecularGroup.rotation.x += deltaY * 0.008;
+        function InteractiveLab() {
+            const [activeExp, setActiveExp] = useState(null);
+            const [expState, setExpState] = useState('IDLE');
+            const [currentTemp, setCurrentTemp] = useState(25);
+            const [currentColor, setCurrentColor] = useState('#fff');
+            const [tempHistory, setTempHistory] = useState([]);
+            const [isDragOver, setIsDragOver] = useState(false);
+            
+            const animationRef = useRef(null);
 
-                previousMousePosition = { x: e.clientX, y: e.clientY };
-            });
+            const selectExperiment = (exp) => {
+                if (expState === 'POURING' || expState === 'REACTING') return;
+                setActiveExp(exp);
+                setCurrentTemp(exp.baseTemp);
+                setCurrentColor(exp.baseColor); 
+                setExpState('READY');
+                setTempHistory([]); 
+                setIsDragOver(false);
+            };
 
-            window.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
-
-            // Touch support for mobile devices
-            container.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 1) {
-                    isDragging = true;
-                    previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                }
-            });
-
-            window.addEventListener('touchmove', (e) => {
-                if (!isDragging || e.touches.length !== 1) return;
-                const deltaX = e.touches[0].clientX - previousMousePosition.x;
-                const deltaY = e.touches[0].clientY - previousMousePosition.y;
-
-                molecularGroup.rotation.y += deltaX * 0.008;
-                molecularGroup.rotation.x += deltaY * 0.008;
-
-                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            });
-
-            window.addEventListener('touchend', () => {
-                isDragging = false;
-            });
-
-            // Zoom via mouse wheel
-            container.addEventListener('wheel', (e) => {
+            const handleDrop = (e) => {
                 e.preventDefault();
-                camera.position.z += e.deltaY * 0.01;
-                camera.position.z = Math.max(6, Math.min(45, camera.position.z));
-            }, { passive: false });
-        }
-
-        // Handle Temperature Changes and Phase Transition (Ice -> Water -> Vapor)
-        function onTemperatureChange(val) {
-            currentTemperature = parseInt(val);
-            let celsius = currentTemperature - 273;
-            document.getElementById('temp-display').innerText = `${celsius >= 0 ? '+' : ''}${celsius}°C (${currentTemperature} K)`;
-
-            let newMode = 'ice';
-            let phaseLabelText = '';
-            let dotColorClass = '';
-            let legendBondText = '';
-
-            if (currentTemperature < 273) {
-                newMode = 'ice';
-                phaseLabelText = `สถานะ: น้ำแข็งก้อน (Ice Ih, ${celsius}°C / ${currentTemperature}K)`;
-                dotColorClass = 'bg-cyan-400';
-                legendBondText = 'พันธะไฮโดรเจนแข็งแรง';
-            } else if (currentTemperature <= 373) {
-                newMode = 'water';
-                phaseLabelText = `สถานะ: น้ำเหลว (Liquid Water, +${celsius}°C / ${currentTemperature}K)`;
-                dotColorClass = 'bg-emerald-400';
-                legendBondText = 'พันธะไฮโดรเจนชั่วคราว';
-            } else {
-                newMode = 'vapor';
-                phaseLabelText = `สถานะ: ไอน้ำ (Water Vapor, +${celsius}°C / ${currentTemperature}K)`;
-                dotColorClass = 'bg-amber-400';
-                legendBondText = 'ไม่มีพันธะไฮโดรเจน';
-            }
-
-            document.getElementById('current-phase-label').innerText = phaseLabelText;
-            document.getElementById('status-indicator-dot').className = `w-2.5 h-2.5 rounded-full ${dotColorClass} animate-pulse`;
-            document.getElementById('legend-bond-text').innerText = legendBondText;
-
-            if (currentPhaseMode !== newMode) {
-                currentPhaseMode = newMode;
-                buildMolecularStructure(currentPhaseMode);
-            }
-        }
-
-        // Build Molecular Structure based on Phase Mode
-        function buildMolecularStructure(mode) {
-            while(molecularGroup.children.length > 0){ 
-                molecularGroup.remove(molecularGroup.children[0]); 
-            }
-            atomMeshes = [];
-            bondLines = [];
-            waterMoleculesData = [];
-
-            let positions = [];
-
-            if (mode === 'ice') {
-                // Ordered hexagonal lattice for Ice
-                for (let layer = -1; layer <= 1; layer++) {
-                    for (let x = -2; x <= 2; x++) {
-                        for (let z = -2; z <= 2; z++) {
-                            let xOffset = x * 3.2 + (layer % 2 === 0 ? 0 : 1.6);
-                            let yOffset = layer * 2.8;
-                            let zOffset = z * 2.8 + (layer % 2 === 0 ? 0 : 0.8);
-                            positions.push(new THREE.Vector3(xOffset, yOffset, zOffset));
-                        }
-                    }
+                setIsDragOver(false);
+                if (expState === 'READY') {
+                    runSequence();
                 }
-            } else if (mode === 'water') {
-                // Semi-ordered liquid clusters
-                for (let layer = -1; layer <= 1; layer++) {
-                    for (let x = -2; x <= 2; x++) {
-                        for (let z = -2; z <= 2; z++) {
-                            let rx = (Math.random() - 0.5) * 1.4;
-                            let ry = (Math.random() - 0.5) * 1.4;
-                            let rz = (Math.random() - 0.5) * 1.4;
-                            let xOffset = x * 3.0 + rx;
-                            let yOffset = layer * 2.6 + ry;
-                            let zOffset = z * 3.0 + rz;
-                            positions.push(new THREE.Vector3(xOffset, yOffset, zOffset));
-                        }
-                    }
-                }
-            } else {
-                // Spread out gas / vapor molecules
-                for (let i = 0; i < 50; i++) {
-                    let px = (Math.random() - 0.5) * 16;
-                    let py = (Math.random() - 0.5) * 12;
-                    let pz = (Math.random() - 0.5) * 16;
-                    positions.push(new THREE.Vector3(px, py, pz));
-                }
-            }
+            };
 
-            const oGeo = new THREE.SphereGeometry(0.55, 32, 32);
-            const oMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3, metalness: 0.2 });
+            const runSequence = () => {
+                if (!activeExp || expState !== 'READY') return;
+                setExpState('POURING');
+                setTimeout(() => {
+                    setExpState('REACTING');
+                    startReaction();
+                }, 1500); 
+            };
 
-            const hGeo = new THREE.SphereGeometry(0.3, 32, 32);
-            const hMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 });
+            const startReaction = () => {
+                if (!activeExp) return;
+                
+                setCurrentColor(activeExp.finalColor);
+                const startT = activeExp.baseTemp;
+                const endT = activeExp.targetTemp;
+                const duration = activeExp.reactionTime;
+                const startObj = { time: 0, temp: startT };
+                
+                setTempHistory([startObj]);
+                let history = [startObj];
+                let startTime = Date.now();
+                let lastUpdate = startTime;
 
-            positions.forEach((pos, index) => {
-                const molGroup = new THREE.Group();
-                molGroup.position.copy(pos);
-
-                const oMesh = new THREE.Mesh(oGeo, oMat);
-                oMesh.castShadow = true;
-                molGroup.add(oMesh);
-
-                const h1Pos = new THREE.Vector3(0.8, 0.6, 0);
-                const h2Pos = new THREE.Vector3(-0.8, 0.6, 0);
-
-                const h1Mesh = new THREE.Mesh(hGeo, hMat);
-                h1Mesh.position.copy(h1Pos);
-                molGroup.add(h1Mesh);
-
-                const h2Mesh = new THREE.Mesh(hGeo, hMat);
-                h2Mesh.position.copy(h2Pos);
-                molGroup.add(h2Mesh);
-
-                createCylinderBond(oMesh.position, h1Mesh.position, 0.08, 0x94a3b8, molGroup);
-                createCylinderBond(oMesh.position, h2Mesh.position, 0.08, 0x94a3b8, molGroup);
-
-                molecularGroup.add(molGroup);
-                atomMeshes.push({ group: molGroup, basePos: pos.clone(), index: index });
-                waterMoleculesData.push({ position: pos, mesh: molGroup });
-            });
-
-            // Connect Hydrogen bonds between nearby molecules if not in Vapor state
-            if (mode !== 'vapor') {
-                let maxDist = (mode === 'ice') ? 3.8 : 3.4;
-                for (let i = 0; i < waterMoleculesData.length; i++) {
-                    for (let j = i + 1; j < waterMoleculesData.length; j++) {
-                        let dist = waterMoleculesData[i].position.distanceTo(waterMoleculesData[j].position);
-                        if (dist < maxDist) {
-                            let hBondLine = createHydrogenBondLine(waterMoleculesData[i].position, waterMoleculesData[j].position, mode);
-                            molecularGroup.add(hBondLine);
-                            bondLines.push(hBondLine);
-                        }
-                    }
-                }
-            }
-        }
-
-        function createCylinderBond(p1, p2, radius, colorHex, parentGroup) {
-            const direction = new THREE.Vector3().subVectors(p2, p1);
-            const height = direction.length();
-            const geometry = new THREE.CylinderGeometry(radius, radius, height, 16);
-            const material = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.5 });
-            const cylinder = new THREE.Mesh(geometry, material);
-
-            cylinder.position.copy(p1).add(p2).multiplyScalar(0.5);
-            cylinder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
-            parentGroup.add(cylinder);
-        }
-
-        function createHydrogenBondLine(p1, p2, mode) {
-            const material = new THREE.LineDashedMaterial({
-                color: mode === 'ice' ? 0x38bdf8 : 0x10b981,
-                linewidth: 2,
-                scale: 1,
-                dashSize: 0.3,
-                gapSize: 0.15,
-                transparent: true,
-                opacity: mode === 'ice' ? 0.6 : 0.4
-            });
-            const geometry = new THREE.BufferGeometry().setFromPoints([p1, p2]);
-            const line = new THREE.Line(geometry, material);
-            line.computeLineDistances();
-            return line;
-        }
-
-        let clock = new THREE.Clock();
-        function animate() {
-            requestAnimationFrame(animate);
-
-            const elapsedTime = clock.getElapsedTime();
-
-            if (!isDragging) {
-                molecularGroup.rotation.y += 0.0025;
-            }
-
-            // Vibration and movement scale dynamically with temperature
-            let speedMultiplier = 10 + (currentTemperature * 0.08);
-            let vibrationIntensity = 0.004 + ((currentTemperature - 200) / 250) * 0.09;
-
-            atomMeshes.forEach((item, idx) => {
-                if (currentPhaseMode === 'vapor') {
-                    // Vapor molecules fly and drift actively
-                    let floatX = Math.sin(elapsedTime * 2 + idx) * 0.06;
-                    let floatY = Math.cos(elapsedTime * 2.5 + idx * 1.3) * 0.06;
-                    let floatZ = Math.sin(elapsedTime * 1.8 + idx * 2) * 0.06;
-                    item.group.position.add(new THREE.Vector3(floatX * 0.2, floatY * 0.2, floatZ * 0.2));
-                    item.group.rotation.x += 0.012;
-                    item.group.rotation.y += 0.015;
-                } else {
-                    let noiseX = Math.sin(elapsedTime * speedMultiplier + idx) * vibrationIntensity;
-                    let noiseY = Math.cos(elapsedTime * speedMultiplier + idx * 1.5) * vibrationIntensity;
-                    let noiseZ = Math.sin(elapsedTime * speedMultiplier + idx * 2) * vibrationIntensity;
+                const animateTemp = () => {
+                    const now = Date.now();
+                    const elapsed = now - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
                     
-                    item.group.position.set(
-                        item.basePos.x + noiseX,
-                        item.basePos.y + noiseY,
-                        item.basePos.z + noiseZ
-                    );
-                }
-            });
+                    const newTemp = startT + (endT - startT) * progress; 
+                    setCurrentTemp(newTemp);
+                    
+                    if (now - lastUpdate > 100 || progress === 1) {
+                        history.push({ time: elapsed / 1000, temp: newTemp });
+                        setTempHistory([...history]);
+                        lastUpdate = now;
+                    }
 
-            renderer.render(scene, camera);
+                    if (progress < 1) {
+                        animationRef.current = requestAnimationFrame(animateTemp);
+                    } else {
+                        setExpState('FINISHED');
+                    }
+                };
+                animationRef.current = requestAnimationFrame(animateTemp);
+            };
+
+            useEffect(() => {
+                return () => { 
+                    if (animationRef.current) cancelAnimationFrame(animationRef.current); 
+                };
+            }, []);
+
+            return (
+                <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6 font-sans">
+                    <div className="max-w-[1200px] mx-auto h-full flex flex-col gap-6">
+                        
+                        {/* Top Bar - Scrollable on mobile */}
+                        <header className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-800 overflow-hidden">
+                            <div className="flex items-center gap-3 w-full xl:w-auto flex-shrink-0">
+                                <div className="p-2 bg-indigo-500 rounded-lg flex-shrink-0">
+                                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                                </div>
+                                <h1 className="text-lg md:text-xl font-bold text-white truncate">Interactive Board: พลังงานเคมี</h1>
+                            </div>
+                            <div className="flex overflow-x-auto w-full gap-2 pb-2 snap-x hide-scroll">
+                                {EXPERIMENTS.map(exp => (
+                                    <button 
+                                        key={exp.id} 
+                                        onClick={() => selectExperiment(exp)} 
+                                        disabled={expState === 'POURING' || expState === 'REACTING'}
+                                        className={`whitespace-nowrap flex-shrink-0 snap-start px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                                            activeExp?.id === exp.id 
+                                                ? (exp.type === 'exothermic' ? 'bg-red-500/20 text-red-400 border border-red-500' : 'bg-blue-500/20 text-blue-400 border border-blue-500') 
+                                                : 'bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700'
+                                        } ${expState === 'POURING' || expState === 'REACTING' ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        {exp.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </header>
+
+                        {/* Split Panels */}
+                        <div className="flex-1 flex flex-col lg:flex-row gap-6">
+                            
+                            {/* Left: Simulation Area */}
+                            <div className="lg:w-1/2 bg-slate-900 rounded-2xl border border-slate-800 p-6 flex flex-col relative min-h-[520px] overflow-hidden">
+                                <h2 className="text-lg font-bold text-slate-200 mb-4 border-b border-slate-800 pb-2 z-20 relative">พื้นที่ทดลอง (Drag & Drop)</h2>
+                                
+                                {!activeExp ? (
+                                    <div className="flex-1 flex items-center justify-center text-slate-500 text-sm border-2 border-dashed border-slate-800 rounded-xl">
+                                        เลือกปฏิกิริยาด้านบนเพื่อเริ่มการทดลอง
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 flex flex-col relative w-full h-full justify-end">
+                                        <div className="absolute inset-0 border-2 border-slate-600/50 border-dashed rounded-xl pointer-events-none z-0 overflow-hidden bg-slate-900/30">
+                                            <div className="absolute top-3 left-4 text-slate-300 font-bold text-sm flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-600/50 shadow-sm z-10">
+                                                🌍 สิ่งแวดล้อม (Environment)
+                                            </div>
+                                            
+                                            {expState === 'REACTING' && activeExp && (
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                                                    {activeExp.type === 'exothermic' ? (
+                                                        <React.Fragment>
+                                                            <div className="absolute text-red-500 font-bold text-3xl md:text-4xl animate-heat-out-up top-16 left-[5%]">↖</div>
+                                                            <div className="absolute text-red-500 font-bold text-3xl md:text-4xl animate-heat-out-up top-16 right-[5%]">↗</div>
+                                                            <div className="absolute text-red-500 font-bold text-3xl md:text-4xl animate-heat-out-left top-[40%] left-[2%]">←</div>
+                                                            <div className="absolute text-red-500 font-bold text-3xl md:text-4xl animate-heat-out-right top-[40%] right-[2%]">→</div>
+                                                            <div className="absolute top-12 text-red-400 font-bold text-sm bg-red-950/90 px-4 py-2 rounded-full border border-red-500/50 shadow-[0_0_15px_rgba(248,113,113,0.3)] animate-pulse">
+                                                                🔥 ถ่ายเทความร้อนออกสู่สิ่งแวดล้อม
+                                                            </div>
+                                                        </React.Fragment>
+                                                    ) : (
+                                                        <React.Fragment>
+                                                            <div className="absolute text-blue-400 font-bold text-3xl md:text-4xl animate-heat-in-down top-16 left-[5%]">↘</div>
+                                                            <div className="absolute text-blue-400 font-bold text-3xl md:text-4xl animate-heat-in-down top-16 right-[5%]">↙</div>
+                                                            <div className="absolute text-blue-400 font-bold text-3xl md:text-4xl animate-heat-in-right top-[40%] left-[2%]">→</div>
+                                                            <div className="absolute text-blue-400 font-bold text-3xl md:text-4xl animate-heat-in-left top-[40%] right-[2%]">←</div>
+                                                            <div className="absolute top-12 text-blue-400 font-bold text-sm bg-blue-950/90 px-4 py-2 rounded-full border border-blue-500/50 shadow-[0_0_15px_rgba(96,165,250,0.3)] animate-pulse">
+                                                                ❄️ ดูดความร้อนจากสิ่งแวดล้อมเข้าสู่ระบบ
+                                                            </div>
+                                                        </React.Fragment>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex justify-center items-end gap-[40px] md:gap-[80px] w-full relative z-10 pb-20 scale-[0.85] md:scale-100 origin-bottom mt-auto">
+                                            
+                                            <div 
+                                                className={`transition-all relative flex flex-col items-center ${isDragOver ? 'scale-105 opacity-80' : ''}`}
+                                                onDragOver={(e) => { e.preventDefault(); if(expState==='READY') setIsDragOver(true); }}
+                                                onDragLeave={() => setIsDragOver(false)}
+                                                onDrop={handleDrop}
+                                            >
+                                                <FlatBeaker 
+                                                    currentTemp={currentTemp} 
+                                                    color={currentColor} 
+                                                    isReacting={expState === 'REACTING'}
+                                                    particlesType={activeExp?.particles}
+                                                    showThermometer={true}
+                                                    liquidHeight={['IDLE','READY'].includes(expState) ? '40%' : '80%'}
+                                                    label={activeExp.baseReactant}
+                                                />
+                                            </div>
+
+                                            <div className="relative flex flex-col items-center">
+                                                <div 
+                                                    draggable={expState === 'READY'}
+                                                    onDragStart={(e) => { e.dataTransfer.setData('text/plain', 'source'); }}
+                                                    className={`${expState !== 'READY' ? 'opacity-0 pointer-events-none' : 'hover:scale-105 transition-transform cursor-grab active:cursor-grabbing'}`}
+                                                >
+                                                    <FlatBeaker 
+                                                        color={activeExp.addedColor} 
+                                                        showThermometer={false}
+                                                        liquidHeight="40%"
+                                                        label={activeExp.addedReactant}
+                                                        isDraggable={true}
+                                                    />
+                                                </div>
+
+                                                {expState === 'POURING' && (
+                                                    <div className="absolute bottom-0 left-0 pointer-events-none animate-pour-from-right z-50 origin-bottom-left">
+                                                        <FlatBeaker 
+                                                            color={activeExp.addedColor} 
+                                                            showThermometer={false}
+                                                            liquidHeight="40%" 
+                                                            label={activeExp.addedReactant}
+                                                            customClass="pour-inner"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="text-center h-[50px] relative z-20 mt-4 flex justify-center items-center">
+                                            {expState === 'READY' && <button onClick={runSequence} className="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg font-bold shadow-lg md:hidden">แตะเพื่อผสมสาร (มือถือ)</button>}
+                                            {(expState === 'POURING' || expState === 'REACTING') && <p className="text-amber-400 font-bold animate-pulse text-lg">กำลังทำปฏิกิริยา...</p>}
+                                            {expState === 'FINISHED' && (
+                                                <p className={`font-bold text-lg ${activeExp.type === 'exothermic' ? 'text-red-400' : 'text-blue-400'}`}>
+                                                    การทดลองเสร็จสิ้น! อุณหภูมิสุดท้าย: {activeExp.targetTemp}°C
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Right: Analysis Pro Panel */}
+                            <div className="lg:w-1/2 flex flex-col gap-4">
+                                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5">
+                                    <h3 className="font-bold text-slate-200 mb-2">วิเคราะห์ปฏิกิริยาเคมี</h3>
+                                    {activeExp && expState === 'FINISHED' ? (
+                                        <div className="space-y-3 animate-in fade-in zoom-in duration-500">
+                                            <div className={`p-3 rounded-xl border ${activeExp.type === 'exothermic' ? 'bg-red-500/10 border-red-500/30' : 'bg-blue-500/10 border-blue-500/30'}`}>
+                                                <p className={`font-bold ${activeExp.type === 'exothermic' ? 'text-red-400' : 'text-blue-400'}`}>{activeExp.title}</p>
+                                                <p className="text-sm text-slate-300 mt-1">{activeExp.description}</p>
+                                            </div>
+                                            <code className="block bg-slate-950 p-3 rounded-lg text-emerald-400 text-sm md:text-base font-mono break-words border border-slate-800 text-center">
+                                                {activeExp.equation.split('ความร้อน').map((part, i, arr) => (
+                                                <React.Fragment key={i}>
+                                                    {part}
+                                                    {i < arr.length - 1 && <span className="text-yellow-400 font-bold px-1">ความร้อน</span>}
+                                                </React.Fragment>
+                                                ))}
+                                            </code>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-slate-500">รอผลการทดลอง...</p>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 flex-1">
+                                    <div className="bg-slate-900 rounded-2xl border border-slate-800 p-4 flex flex-col min-h-[200px]">
+                                        <h3 className="text-sm font-bold text-slate-300 mb-1">กราฟอุณหภูมิต่อเวลา</h3>
+                                        <p className="text-xs text-slate-400 mb-3 min-h-[32px]">
+                                            {activeExp && expState !== 'IDLE' 
+                                                ? (activeExp.type === 'exothermic' ? '🌡️ อุณหภูมิระบบสูงขึ้น เนื่องจากมีการคายความร้อนออกสู่สิ่งแวดล้อม' : '❄️ อุณหภูมิระบบลดลง เนื่องจากระบบดูดความร้อนจากสิ่งแวดล้อมเข้าไป')
+                                                : 'แสดงการเปลี่ยนแปลงอุณหภูมิเมื่อเวลาผ่านไป'}
+                                        </p>
+                                        <div className="flex-1">
+                                            <TemperatureGraph data={tempHistory} maxTime={activeExp ? activeExp.reactionTime/1000 : 1} type={activeExp?.type} />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="bg-slate-900 rounded-2xl border border-slate-800 p-4 flex flex-col min-h-[200px]">
+                                        <h3 className="text-sm font-bold text-slate-300 mb-1">กราฟพลังงาน (Energy Profile)</h3>
+                                        <p className="text-xs text-slate-400 mb-3 min-h-[32px]">
+                                            {activeExp && expState === 'FINISHED'
+                                                ? (activeExp.type === 'exothermic' ? '📉 พลังงานผลิตภัณฑ์ < สารตั้งต้น (ส่วนต่างถูกคายออก)' : '📈 พลังงานผลิตภัณฑ์ > สารตั้งต้น (ดูดพลังงานเข้าไปสะสมเพิ่ม)')
+                                                : 'แสดงระดับพลังงานของสารในระบบ'}
+                                        </p>
+                                        <div className="flex-1">
+                                            <EnergyGraph energyProfile={expState === 'FINISHED' ? activeExp?.energyProfile : null} type={activeExp?.type} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
         }
 
-        function onWindowResize() {
-            const container = document.getElementById('canvas-container');
-            camera.aspect = container.clientWidth / container.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
-        }
-
-        function setCameraView(view) {
-            let targetPos = new THREE.Vector3(0, 5, 20);
-            if (view === 'top') targetPos.set(0, 24, 0.1);
-            if (view === 'side') targetPos.set(22, 0, 0);
-            if (view === 'isometric') targetPos.set(15, 15, 15);
-
-            let startPos = camera.position.clone();
-            let startTime = performance.now();
-            let duration = 800;
-
-            function animateCam(currentTime) {
-                let elapsed = currentTime - startTime;
-                let progress = Math.min(elapsed / duration, 1);
-                let easeProgress = progress * (2 - progress);
-
-                camera.position.lerpVectors(startPos, targetPos, easeProgress);
-                camera.lookAt(0, 0, 0);
-
-                if (progress < 1) {
-                    requestAnimationFrame(animateCam);
-                }
-            }
-            requestAnimationFrame(animateCam);
-        }
-
-        function resetSimulation() {
-            molecularGroup.rotation.set(0, 0, 0);
-            setCameraView('isometric');
-        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<InteractiveLab />);
     </script>
 </body>
 </html>
