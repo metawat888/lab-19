@@ -219,7 +219,7 @@
                     )}
 
                     {showThermometer && typeof currentTemp === 'number' && (
-                        <div className="absolute top-[30px] left-[-35px] bg-black text-white px-2 py-1 rounded-md text-xs font-mono font-bold z-50">
+                        <div className="absolute top-[10px] left-[-35px] bg-black text-white px-2 py-1 rounded-md text-xs font-mono font-bold z-50">
                             {currentTemp.toFixed(1)}°C
                         </div>
                     )}
@@ -269,7 +269,7 @@
                         </div>
 
                         {showThermometer && (
-                            <div className="absolute bottom-[5px] right-[15px] w-[20px] h-[170px] bg-white border-[5px] border-black rounded-full p-[2px] flex flex-col justify-end z-20">
+                            <div className="absolute bottom-[25px] right-[15px] w-[20px] h-[170px] bg-white border-[5px] border-black rounded-full p-[2px] flex flex-col justify-end z-20">
                                 <div className="w-full bg-red-600 rounded-full transition-all duration-300 origin-bottom" style={{ height: `${tempPercent}%` }}></div>
                             </div>
                         )}
