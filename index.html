@@ -555,10 +555,15 @@
                                                 {/* บีกเกอร์ที่นำมาผสม (ขวา) */}
                                                 {expState === 'READY' && (
                                                     <div className="relative flex flex-col items-center w-[140px] transition-opacity">
+                                                        {/* ป้ายแนะนำสำหรับผู้ใช้ iPad/มือถือ */}
+                                                        <div className="absolute -top-8 text-xs font-bold text-emerald-400 animate-bounce bg-slate-900/80 px-2 py-1 rounded-md border border-emerald-500/30 whitespace-nowrap z-50">
+                                                            👆 ลาก หรือ แตะเพื่อผสม
+                                                        </div>
                                                         <div 
                                                             draggable={true}
                                                             onDragStart={(e) => { e.dataTransfer.setData('text/plain', 'source'); }}
-                                                            className="hover:scale-105 transition-transform cursor-grab active:cursor-grabbing"
+                                                            onClick={runSequence}
+                                                            className="hover:scale-105 transition-transform cursor-pointer active:cursor-grabbing mt-2"
                                                         >
                                                             <FlatBeaker 
                                                                 color={activeExp.addedColor} 
@@ -574,7 +579,6 @@
 
                                         {/* ส่วนล่าง: ป้ายแสดงผลลัพธ์การทดลอง (ล็อกความสูงไว้เช่นกัน) */}
                                         <div className="h-[60px] shrink-0 text-center relative z-20 flex justify-center items-start">
-                                            {expState === 'READY' && <button onClick={runSequence} className="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg font-bold shadow-lg md:hidden">แตะเพื่อผสมสาร (มือถือ)</button>}
                                             {expState === 'REACTING' && <p className="text-amber-400 font-bold animate-pulse text-lg mt-2">กำลังเกิดปฏิกิริยา...</p>}
                                             {expState === 'FINISHED' && (
                                                 <p className={`font-bold text-lg md:text-xl mt-2 ${activeExp.type === 'exothermic' ? 'text-red-400' : 'text-blue-400'}`}>
